@@ -2,8 +2,9 @@ from __future__ import annotations
 import orjson, anyio
 from typing import List, Optional
 from .llm_client import OpenAIStyleClient
+from .config import AppConfig
 from .schema import (
-    AppConfig, ControllerDecision, SearchPlan, ReadSelection, SearchDoc, ReaderReport, OrchestratorState
+    ControllerDecision, SearchPlan, ReadSelection, SearchDoc, ReaderReport, OrchestratorState
 )
 from .prompts import CFJ_CONTROLLER
 from .utils import new_uuid, now_iso
