@@ -1,0 +1,15 @@
+llm0:
+  base_url: "https://api.openai.com/v1"
+  api_key: "YOUR_KEY"
+  model: "gpt-4.1"
+llm1:
+  base_url: "https://api.openai.com/v1"
+  api_key: "YOUR_KEY"
+  model: "gpt-4o-mini"
+search:
+  bingsift_endpoint: "http://localhost:8787/search"
+  per_query_limit: 8
+orchestrator:
+  max_rounds: 3
+  concurrency: 6
+  save_log_path: ".deepseeker_run.jsonl"
