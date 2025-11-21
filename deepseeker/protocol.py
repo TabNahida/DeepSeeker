@@ -18,8 +18,6 @@ TOOL_BLOCK_RE = re.compile(
 class ToolCall:
     """
     Parsed representation of a DeepSeeker tool call emitted by LLM0.
-
-    对 Step 1 来说，只会有 "search" 这个 tool。
     """
     tool: str
     id: str
@@ -29,9 +27,6 @@ class ToolCall:
 def parse_tool_calls(text: str) -> List[ToolCall]:
     """
     Extract all DeepSeeker tool calls from a piece of model output.
-
-    - 不抛异常，解析失败就忽略
-    - 允许多个 code block，但我们一般只用第一个
     """
     calls: List[ToolCall] = []
 
