@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from dataclasses import asdict
 
 from .config import load_llm_configs
 from .logging_utils import StepLogger
@@ -46,7 +47,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
 
     logger.log("plan", "Calling LLM0 planning endpoint.")
     plan = call_llm0_plan(llm0, question=args.question)
-    print(json.dumps(plan.__dict__, ensure_ascii=False, indent=2))
+    print(json.dumps(asdict(plan), ensure_ascii=False, indent=2))
     return 0
 
 
