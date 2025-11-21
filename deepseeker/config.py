@@ -1,27 +1,24 @@
-from dataclasses import dataclass, field
-from typing import Optional
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
 
 
 @dataclass
-class ModelConfig:
-    """Configuration for a single LLM model."""
-    name: str
+class LLMConfig:
+    model: str
+    temperature: float = 0.3
     max_output_tokens: int = 2048
-    temperature: float = 0.2
 
 
-@dataclass
-class DeepSeekerConfig:
+def load_llm_configs() -> tuple[LLMConfig, LLMConfig]:
     """
-    Global configuration for DeepSeeker step 1 (LLM0 only).
+    Load LLM0 / LLM1 model names from environment variables,
+    with reasonable defaults.
     """
-    llm0: ModelConfig = field(
-        default_factory=lambda: ModelConfig(
-            name="qwen-plus", 
-            max_output_tokens=2048,
-            temperature=0.2,
-        )
-    )
+    llm0_model = os.getenv("DEEPSEEKER_LLM0_MODEL", "gpt-5.1-thinking")
+    llm1_model = os.getenv("DEEPSEEKER_LLM1_MODEL", "gpt-4o-mini")
 
-    openai_api_key: Optional[str] = None
-    openai_base_url: Optional[str] = None
+    llm0 = LLMConfig(model=llm0_model, temperature=0.2, max_output_tokens=4096)
+    llm1 = LLMConfig(model=llm1_model, temperature=0.3, max_output_tokens=1536)
+    return llm0, llm1
