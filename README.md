@@ -52,13 +52,13 @@ export DEEPSEEKER_LLM1_MODEL="gpt-4o-mini"
 
 ## CLI Usage
 
-### 1. Test search
+### 1. Search
 
 ```bash
 python -m deepseeker.cli search --query "intel earnings" --when week
 ```
 
-### 2. Test LLM0 planning
+### 2. Planning
 
 ```bash
 python -m deepseeker.cli plan --question "Explain ARM vs RISC-V for servers."
@@ -67,7 +67,7 @@ python -m deepseeker.cli plan --question "Explain ARM vs RISC-V for servers."
 ### 3. Run full pipeline
 
 ```bash
-python -m deepseeker.cli run --question "Latest advances in exoplanet detection using TESS and JWST?"
+python -m deepseeker.cli run --question "Latest advances in large-scale model training using distributed computing and GPU clusters?"
 ```
 
 You will see:
