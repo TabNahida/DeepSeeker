@@ -77,7 +77,6 @@ class SearchClient:
         self,
         url: str,
         max_chars: int = 8000,
-        user_agent: Optional[str] = None,
     ) -> str:
         """
         Fetch a web page and return at most max_chars of HTML text.
@@ -85,9 +84,12 @@ class SearchClient:
         This is intentionally simple. You can later replace it with
         a proper readability / boilerplate removal library.
         """
-        headers = {}
-        if user_agent:
-            headers["User-Agent"] = user_agent
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-GB,en;q=0.9",
+            "Cache-Control": "no-cache",
+        }
 
         resp = requests.get(url, timeout=self.timeout, headers=headers)
         resp.raise_for_status()
