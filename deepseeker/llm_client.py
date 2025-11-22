@@ -84,6 +84,10 @@ Always output a single JSON object with this structure:
   "notes": "brief explanation of why you chose this action"
 }
 
+Important:
+- NEVER choose "when": "month" for scientific topics, because it filters out too many results.
+- Prefer "week" or "any".
+- If uncertain, ALWAYS use "when": "any".
 - If you are unsure, prefer using search.
 - Keep queries reasonably specific, not too broad or too narrow.
 - Use English for queries and filters.
@@ -171,8 +175,6 @@ def call_llm0_select(
             "id": r.id,
             "title": r.title,
             "snippet": r.snippet,
-            "url": r.url,
-            "domain": r.domain,
             "guessed_time": r.guessed_time,
         }
         for r in search_results

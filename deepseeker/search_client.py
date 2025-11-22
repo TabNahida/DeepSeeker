@@ -7,6 +7,7 @@ import requests
 
 from bingsift import filter_results  # type: ignore
 from bingsift.net import fetch_serp_by_query  # type: ignore
+from bingsift.net import fetch_click_and_extract  # type: ignore
 
 from .types import SearchFilters, SearchRequest, SearchResult
 
@@ -56,10 +57,12 @@ class SearchClient:
         for idx, row in enumerate(rows[: req.max_results], start=1):
             # BingSift rows are simple dicts, see README.
             # We defensively access keys.
+            real_url = fetch_click_and_extract(row.get("url", ""))
+        
             r = SearchResult(
                 id=f"r{idx}",
                 title=row.get("title", ""),
-                url=row.get("url", ""),
+                url=real_url,
                 snippet=row.get("snippet", ""),
                 domain=row.get("domain"),
                 display_url=row.get("display_url"),
