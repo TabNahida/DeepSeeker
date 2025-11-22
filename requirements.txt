@@ -1,3 +1,0 @@
-openai>=1.40.0
-requests>=2.31.0
-bingsift>=0.1.0
