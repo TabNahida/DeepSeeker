@@ -6,7 +6,9 @@ readme = "README.md"
 requires-python = ">=3.10"
 authors = [{name="TabNahida"}]
 license = {text = "MIT"}
-dependencies = ["openai>=1.40.0", "requests>=2.31.0"]
+dependencies = ["openai>=1.40.0", 
+                "requests>=2.31.0",
+                "bingsift@git+https://github.com/TabNahida/BingSift.git@v0.3.1"]
 
 [project.scripts]
 deepseeker = "deepseeker.cli:main"

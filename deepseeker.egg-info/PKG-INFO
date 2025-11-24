@@ -1,0 +1,152 @@
+Metadata-Version: 2.4
+Name: deepseeker
+Version: 0.1.0
+Summary: Lightweight Multi-LLM Deep Research Engine
+Author: TabNahida
+License: MIT
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: openai>=1.40.0
+Requires-Dist: requests>=2.31.0
+Requires-Dist: bingsift@ git+https://github.com/TabNahida/BingSift.git@v0.3.1
+Dynamic: license-file
+
+# DeepSeeker — Lightweight Multi-LLM Deep Research Engine
+
+DeepSeeker is a modular deep-research system inspired by OpenAI’s **Deep Research**, designed for transparent reasoning, iterative search, and multi-model collaboration.
+
+It integrates:
+- **LLM0** — Planner & Final Analyst (high-quality model)
+- **LLM1** — Reader & Summarizer (cost-efficient model)
+- **BingSift** — Web search + result extraction backend
+
+DeepSeeker runs a full research pipeline:
+1. **LLM0** analyzes the question and decides whether to perform web search.  
+2. If search is required, DeepSeeker uses **BingSift** to fetch SERP results.  
+3. **LLM0** inspects results (title + snippet) and chooses which pages require deep reading.  
+4. **LLM1** reads each selected page and produces structured summaries.  
+5. **LLM0** synthesizes all summaries and generates a final, well-structured report.
+
+All LLM responses follow a **lightweight JSON protocol** (MCP-like, but much simpler), ensuring predictable, controllable system behavior.
+
+---
+
+## Features
+
+- **Two-LLM architecture** for optimal cost/performance.
+- **Deterministic JSON protocol** for plan/selection/summarization/synthesis stages.
+- **Extensible orchestrator** written in Python.
+- **Search powered by BingSift** (keyword filtering, domain control, freshness filters).
+- **Human-readable step logging** for full transparency.
+- **CLI utilities** for testing each stage:
+  - `plan` — LLM0 planning behaviour
+  - `search` — BingSift integration
+  - `run` — full research pipeline
+
+---
+
+## Installation
+
+```bash
+pip install -r requirements.txt
+````
+
+Set environment variables:
+
+```bash
+export OPENAI_API_KEY="your-key"
+export DEEPSEEKER_LLM0_MODEL="gpt-5.1-thinking"
+export DEEPSEEKER_LLM1_MODEL="gpt-4o-mini"
+# Optional: custom endpoint
+# export OPENAI_BASE_URL="https://your-host/v1"
+```
+
+---
+
+## CLI Usage
+
+### 1. Search
+
+```bash
+python -m deepseeker.cli search --query "intel earnings" --when week
+```
+
+### 2. Planning
+
+```bash
+python -m deepseeker.cli plan --question "Explain ARM vs RISC-V for servers."
+```
+
+### 3. Run full pipeline
+
+```bash
+python -m deepseeker.cli run --question "Latest advances in large-scale model training using distributed computing and GPU clusters?"
+```
+
+You will see:
+
+* Markdown final answer
+* Key summary points
+* A full JSON log of internal steps
+
+## Lightweight JSON Protocol
+
+DeepSeeker enforces strict JSON outputs:
+
+### LLM0 Plan
+
+```json
+{
+  "action": "direct_answer" | "search_then_answer",
+  "direct_answer": "...",
+  "search": {
+    "query": "...",
+    "when": "week",
+    "include": [],
+    "exclude": [],
+    "allow_domains": [],
+    "deny_domains": [],
+    "max_results": 10
+  },
+  "notes": "..."
+}
+```
+
+### LLM1 Summary
+
+```json
+{
+  "title": "...",
+  "summary": "...",
+  "key_points": ["..."],
+  "relevance_score": 0.0,
+  "notes": "..."
+}
+```
+
+### LLM0 Final Synthesis
+
+```json
+{
+  "answer": "markdown report",
+  "key_points": [],
+  "used_results": [],
+  "notes": "..."
+}
+```
+
+## Roadmap
+
+- [x] Two-LLM orchestration
+- [x] BingSift search integration
+- [ ] Enhanced Log System
+- [ ] WebUI
+- [ ] Deep Iterative Search
+- [ ] Smart Page Reader
+- [ ] Plugin System
+
+## License
+
+MIT License (or replace with your preferred license).
+
