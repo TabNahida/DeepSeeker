@@ -90,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     p_search.add_argument(
         "--when",
         default="week",
-        choices=["day", "week", "month", "any"],
+        choices=["day", "week", "month", "year", "any"],
         help="Freshness filter for Bing search.",
     )
     p_search.add_argument(

@@ -64,31 +64,38 @@ Your job in this stage is:
 1. Read the user's research question.
 2. Decide whether:
    - You can answer directly without web search, OR
-   - You need to perform a Bing web search first.
-3. If you choose to search, you must propose ONE SearchRequest.
+   - You need to perform one or more web searches first.
+3. If you choose to search, you must propose ONE OR MORE search requests.
 
 Always output a single JSON object with this structure:
 
 {
   "action": "direct_answer" | "search_then_answer",
   "direct_answer": "...",   // required when action == "direct_answer"
-  "search": {                // required when action == "search_then_answer"
-    "query": "...",
-    "when": "day" | "week" | "month" | "any",
-    "include": ["optional", "keywords"],
-    "exclude": [],
-    "allow_domains": [],
-    "deny_domains": [],
-    "max_results": 10
-  },
+  "searches": [             // required when action == "search_then_answer"
+    {
+      "query": "...",
+      "when": "day" | "week" | "month" | "year" | "any",
+      "include": ["optional", "keywords"],
+      "exclude": [],
+      "allow_domains": [],
+      "deny_domains": [],
+      "max_results": 10
+    }
+  ],
   "notes": "brief explanation of why you chose this action"
 }
 
-Important:
-- NEVER choose "when": "month" for scientific topics, because it filters out too many results.
-- Prefer "week" or "any".
-- If uncertain, ALWAYS use "when": "any".
-- If you are unsure, prefer using search.
+Guidance about `when`:
+- Prefer "day" for breaking news or very fresh events.
+- Prefer "month" for topics evolving over weeks.
+- Prefer "year" or "any" for long-term background or theory.
+- Use "week" only when you specifically need roughly last 7 days of information;
+  avoid it as the default choice.
+
+Guidance about multiple searches:
+- Use multiple search requests when you want to cover different angles,
+  e.g. "general background", "recent news", "technical docs".
 - Keep queries reasonably specific, not too broad or too narrow.
 - Use English for queries and filters.
 """.strip()
@@ -106,6 +113,7 @@ def call_llm0_plan(llm: JsonLLMClient, question: str) -> PlanDecision:
     action = data.get("action")
     notes = data.get("notes")
 
+    # --- direct_answer path ---
     if action == "direct_answer":
         return PlanDecision(
             action=action,
@@ -113,33 +121,52 @@ def call_llm0_plan(llm: JsonLLMClient, question: str) -> PlanDecision:
             notes=notes,
         )
 
+    # --- search_then_answer path (multi-search) ---
     if action == "search_then_answer":
-        search = data.get("search") or {}
-        filters = SearchFilters(
-            include=search.get("include", []) or [],
-            exclude=search.get("exclude", []) or [],
-            allow_domains=search.get("allow_domains", []) or [],
-            deny_domains=search.get("deny_domains", []) or [],
-        )
-        sr = SearchRequest(
-            query=search.get("query", question),
-            when=search.get("when", "week"),
-            filters=filters,
-            max_results=int(search.get("max_results", 10)),
-        )
+        raw_searches = data.get("searches") or []
+
+        # backward compatibility: allow a single "search" object
+        if not raw_searches and "search" in data:
+            raw_searches = [data["search"]]
+
+        search_requests: list[SearchRequest] = []
+        for s in raw_searches:
+            if not isinstance(s, dict):
+                continue
+            filters = SearchFilters(
+                include=s.get("include", []) or [],
+                exclude=s.get("exclude", []) or [],
+                allow_domains=s.get("allow_domains", []) or [],
+                deny_domains=s.get("deny_domains", []) or [],
+            )
+            search_requests.append(
+                SearchRequest(
+                    query=s.get("query") or question,
+                    when=s.get("when", "week"),
+                    filters=filters,
+                    max_results=int(s.get("max_results", 10)),
+                )
+            )
+
         return PlanDecision(
-            action=action,
-            search_request=sr,
+            action="search_then_answer",
+            search_requests=search_requests,
             notes=notes,
         )
 
-    # Fallback: force a search
+    # --- fallback: invalid action, force a single search_then_answer ---
     fallback_filters = SearchFilters()
-    sr = SearchRequest(query=question, when="week", filters=fallback_filters, max_results=10)
     return PlanDecision(
         action="search_then_answer",
-        search_request=sr,
-        notes="Fallback: invalid action, defaulting to search_then_answer.",
+        search_requests=[
+            SearchRequest(
+                query=question,
+                when="week",
+                filters=fallback_filters,
+                max_results=10,
+            )
+        ],
+        notes="Fallback: invalid action, defaulting to a single search_then_answer.",
     )
 
 

@@ -18,9 +18,18 @@ class SearchFilters:
 
 @dataclass
 class SearchRequest:
-    """Search parameters decided by LLM0."""
+    """
+    One web search configuration.
+
+    `when` is passed through to the search backend and typically supports:
+    - "day"   : last 24 hours
+    - "week"  : last 7 days (use cautiously, not as default)
+    - "month" : last ~30 days
+    - "year"  : last ~12 months
+    - "any"   : no time filter
+    """
     query: str
-    when: str = "week"  # "day" | "week" | "month" | "any"
+    when: str = "week"
     filters: SearchFilters = field(default_factory=SearchFilters)
     max_results: int = 20
 
@@ -55,10 +64,16 @@ class ArticleSummary:
 
 @dataclass
 class PlanDecision:
-    """Decision made by LLM0 after seeing the original user question."""
+    """
+    LLM0's high-level plan.
+
+    - When action == "direct_answer", `direct_answer` must be filled.
+    - When action == "search_then_answer", there must be at least one SearchRequest
+      in `search_requests`.
+    """
     action: str  # "direct_answer" or "search_then_answer"
     direct_answer: Optional[str] = None
-    search_request: Optional[SearchRequest] = None
+    search_requests: List[SearchRequest] = field(default_factory=list)
     notes: Optional[str] = None
 
 
