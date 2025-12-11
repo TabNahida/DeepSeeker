@@ -30,7 +30,7 @@ class SearchClient:
         Run a Bing search using BingSift with optional filters.
         """
         # 1) Fetch SERP via BingSift
-        rows = fetch_serp_by_query(query=req.query, when=req.when, country="us")
+        rows = fetch_serp_by_query(query=req.query, when=req.when, country="en-US")
 
         # 2) Apply filters if provided
         f: SearchFilters = req.filters
