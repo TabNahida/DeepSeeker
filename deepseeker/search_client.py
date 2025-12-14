@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from typing import List, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 
@@ -54,22 +55,30 @@ class SearchClient:
 
         # 3) Map to SearchResult and assign IDs r1, r2, ...
         results: List[SearchResult] = []
-        for idx, row in enumerate(rows[: req.max_results], start=1):
-            # BingSift rows are simple dicts, see README.
-            # We defensively access keys.
-            real_url = fetch_click_and_extract(row.get("url", ""))
+        rows = rows[: req.max_results]
+        max_workers = 10
         
-            r = SearchResult(
-                id=f"r{idx}",
-                title=row.get("title", ""),
-                url=real_url,
-                snippet=row.get("snippet", ""),
-                domain=row.get("domain"),
-                display_url=row.get("display_url"),
-                guessed_time=row.get("guessed_time"),
-                attribution=row.get("attribution"),
-            )
-            results.append(r)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_idx = {
+                executor.submit(fetch_click_and_extract, row.get("url", "")): (idx, row)
+                for idx, row in enumerate(rows, start=1)
+            }
+
+            for future in as_completed(future_to_idx):
+                idx, row = future_to_idx[future]
+                real_url = future.result()
+
+                r = SearchResult(
+                    id=f"r{idx}",
+                    title=row.get("title", ""),
+                    url=real_url,
+                    snippet=row.get("snippet", ""),
+                    domain=row.get("domain"),
+                    display_url=row.get("display_url"),
+                    guessed_time=row.get("guessed_time"),
+                    attribution=row.get("attribution"),
+                )
+                results.append(r)
 
         return results
 

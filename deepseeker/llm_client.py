@@ -136,10 +136,12 @@ def call_llm0_plan(llm: JsonLLMClient, question: str) -> PlanDecision:
             filters = SearchFilters(
                 include=[],
                 exclude=[],
+                allow_domains=[],
+                deny_domains=[],
                 #include=s.get("include", []) or [],
                 #exclude=s.get("exclude", []) or [],
-                allow_domains=s.get("allow_domains", []) or [],
-                deny_domains=s.get("deny_domains", []) or [],
+                #allow_domains=s.get("allow_domains", []) or [],
+                #deny_domains=s.get("deny_domains", []) or [],
             )
             search_requests.append(
                 SearchRequest(
