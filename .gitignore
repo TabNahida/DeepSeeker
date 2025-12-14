@@ -1,4 +1,5 @@
 *.pyc
 test_step1.py
+test.md
 /build
 /deepseeker.egg-info

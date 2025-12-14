@@ -62,7 +62,7 @@ class DeepSeekerOrchestrator:
             self.logger.log(
                 "search",
                 f"Running search #{idx} with query='{sreq.query}' when='{sreq.when}'.",
-                data={"search_index": idx, "query": sreq.query, "when": sreq.when},
+                data={"search_index": idx, "query": sreq.query, "when": sreq.when, "filters": sreq.filters.__dict__},
             )
             try:
                 partial = self.search_client.search(sreq)

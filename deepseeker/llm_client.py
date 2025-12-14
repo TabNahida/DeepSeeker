@@ -134,8 +134,10 @@ def call_llm0_plan(llm: JsonLLMClient, question: str) -> PlanDecision:
             if not isinstance(s, dict):
                 continue
             filters = SearchFilters(
-                include=s.get("include", []) or [],
-                exclude=s.get("exclude", []) or [],
+                include=[],
+                exclude=[],
+                #include=s.get("include", []) or [],
+                #exclude=s.get("exclude", []) or [],
                 allow_domains=s.get("allow_domains", []) or [],
                 deny_domains=s.get("deny_domains", []) or [],
             )
@@ -182,7 +184,7 @@ Your job is to choose which results should be deeply read by another model (LLM1
 Output a JSON object with this structure:
 
 {
-  "selected_ids": ["r1", "r3", "r5"],
+  "selected_ids": ["s1_r1", "s2_r3", "s4_r5"],
   "notes": "why you chose these results"
 }
 
