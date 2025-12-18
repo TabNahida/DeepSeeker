@@ -133,16 +133,15 @@ def call_llm0_plan(llm: JsonLLMClient, question: str) -> PlanDecision:
         for s in raw_searches:
             if not isinstance(s, dict):
                 continue
+            """
             filters = SearchFilters(
-                include=[],
-                exclude=[],
-                allow_domains=[],
-                deny_domains=[],
-                #include=s.get("include", []) or [],
-                #exclude=s.get("exclude", []) or [],
-                #allow_domains=s.get("allow_domains", []) or [],
-                #deny_domains=s.get("deny_domains", []) or [],
+                include=s.get("include", []) or [],
+                exclude=s.get("exclude", []) or [],
+                allow_domains=s.get("allow_domains", []) or [],
+                deny_domains=s.get("deny_domains", []) or [],
             )
+            """
+            filters = SearchFilters()
             search_requests.append(
                 SearchRequest(
                     query=s.get("query") or question,
