@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from typing import List, Optional
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import asyncio
 
 import requests
 
 from bingsift import filter_results  # type: ignore
 from bingsift.net import fetch_serp_by_query  # type: ignore
-from bingsift.net import fetch_click_and_extract  # type: ignore
+from bingsift.net import fetch_click_and_extract_async  # type: ignore
 
 from .types import SearchFilters, SearchRequest, SearchResult
 
@@ -56,29 +56,28 @@ class SearchClient:
         # 3) Map to SearchResult and assign IDs r1, r2, ...
         results: List[SearchResult] = []
         rows = rows[: req.max_results]
-        max_workers = 10
         
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_idx = {
-                executor.submit(fetch_click_and_extract, row.get("url", "")): (idx, row)
-                for idx, row in enumerate(rows, start=1)
-            }
+        async def fetch_all_urls():
+            tasks = [
+                fetch_click_and_extract_async(row.get("url", ""))
+                for row in rows
+            ]
+            return await asyncio.gather(*tasks)
 
-            for future in as_completed(future_to_idx):
-                idx, row = future_to_idx[future]
-                real_url = future.result()
-
-                r = SearchResult(
-                    id=f"r{idx}",
-                    title=row.get("title", ""),
-                    url=real_url,
-                    snippet=row.get("snippet", ""),
-                    domain=row.get("domain"),
-                    display_url=row.get("display_url"),
-                    guessed_time=row.get("guessed_time"),
-                    attribution=row.get("attribution"),
-                )
-                results.append(r)
+        fetched_urls = asyncio.run(fetch_all_urls())
+        
+        for idx, (real_url, row) in enumerate(zip(fetched_urls, rows), start=1):
+            r = SearchResult(
+                id=f"r{idx}",
+                title=row.get("title", ""),
+                url=real_url,
+                snippet=row.get("snippet", ""),
+                domain=row.get("domain"),
+                display_url=row.get("display_url"),
+                guessed_time=row.get("guessed_time"),
+                attribution=row.get("attribution"),
+            )
+            results.append(r)
 
         return results
 
