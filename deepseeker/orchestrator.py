@@ -21,15 +21,21 @@ class DeepSeekerOrchestrator:
 
     def __init__(
         self,
-            llm0: JsonLLMClient,
-            llm1: JsonLLMClient,
-            search_client: SearchClient,
-            logger: StepLogger,
-        ):
+        llm0: JsonLLMClient,
+        llm1: JsonLLMClient,
+        search_client: SearchClient,
+        logger: StepLogger,
+    ):
         self.llm0 = llm0
         self.llm1 = llm1
         self.search_client = search_client
         self.logger = logger
+        
+        # Ensure LLM clients have logger for full I/O recording
+        if hasattr(llm0, 'logger'):
+            llm0.logger = logger
+        if hasattr(llm1, 'logger'):
+            llm1.logger = logger
 
     def run(self, question: str) -> DeepSeekerReport:
         """
@@ -187,6 +193,17 @@ class DeepSeekerOrchestrator:
         report.final_answer = final_answer
         report.steps = self.logger.events[:]
         return report
+
+    @staticmethod
+    def _wrap_direct_answer(answer_text: str) -> "FinalAnswer":
+        from .types import FinalAnswer
+
+        return FinalAnswer(
+            answer=answer_text,
+            key_points=[],
+            used_results=[],
+            notes="Direct answer from LLM0 without web search.",
+        )
 
     @staticmethod
     def _wrap_direct_answer(answer_text: str) -> "FinalAnswer":

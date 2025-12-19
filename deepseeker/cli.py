@@ -15,7 +15,7 @@ from .search_client import SearchClient
 def cmd_search(args: argparse.Namespace) -> int:
     llm0_cfg, llm1_cfg = load_llm_configs()  # not needed here, but kept for symmetry
     search_client = SearchClient()
-    logger = StepLogger(verbose=True)
+    logger = StepLogger(verbose=True, debug=args.debug)
 
     from .types import SearchFilters, SearchRequest
 
@@ -42,12 +42,16 @@ def cmd_plan(args: argparse.Namespace) -> int:
     from .llm_client import call_llm0_plan
 
     llm0_cfg, _ = load_llm_configs()
-    llm0 = JsonLLMClient(llm0_cfg)
-    logger = StepLogger(verbose=True)
+    logger = StepLogger(verbose=True, debug=args.debug)
+    llm0 = JsonLLMClient(llm0_cfg, logger=logger)
 
     logger.log("plan", "Calling LLM0 planning endpoint.")
     plan = call_llm0_plan(llm0, question=args.question)
     print(json.dumps(asdict(plan), ensure_ascii=False, indent=2))
+    
+    # Save log
+    full_log_path = logger.save_full_log()
+    print(f"\nLog saved to: {full_log_path}")
     return 0
 
 
@@ -56,7 +60,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     llm0 = JsonLLMClient(llm0_cfg)
     llm1 = JsonLLMClient(llm1_cfg)
     search_client = SearchClient()
-    logger = StepLogger(verbose=True)
+    logger = StepLogger(verbose=True, debug=args.debug)
 
     orchestrator = DeepSeekerOrchestrator(
         llm0=llm0,
@@ -77,11 +81,24 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     print("\n===== RAW STEPS (JSON) =====\n")
     print(logger.to_json())
+    
+    # Save full log with LLM I/O records
+    full_log_path = logger.save_full_log()
+    summary = logger.get_summary()
+    
+    print(f"\n===== SESSION SUMMARY =====")
+    print(f"Total steps: {summary['total_steps']}")
+    print(f"LLM calls: {summary['total_llm_calls']}")
+    print(f"Errors: {summary['errors']}")
+    print(f"Full log saved to: {full_log_path}")
+    print(f"Console log saved to: {summary['log_file']}")
+    
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="deepseeker", description="DeepSeeker research CLI")
+    parser.add_argument("--debug", action="store_true", help="Enable DEBUG logging for detailed LLM I/O records")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # search

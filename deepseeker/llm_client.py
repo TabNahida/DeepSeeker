@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, List
+import time
+from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
 
 from .config import LLMConfig
+from .logging_utils import StepLogger
 from .types import (
     ArticleSummary,
     FinalAnswer,
@@ -22,10 +24,13 @@ class JsonLLMClient:
     """
     Small helper around OpenAI-style chat completion API that always expects
     a single JSON object as the assistant content.
+    
+    Enhanced with logging capabilities to record full LLM I/O.
     """
 
-    def __init__(self, config: LLMConfig, client: OpenAI | None = None):
+    def __init__(self, config: LLMConfig, client: OpenAI | None = None, logger: Optional[StepLogger] = None):
         self.config = config
+        self.logger = logger
         # Support custom base_url if you want to use an OpenAI-compatible endpoint
         base_url = os.getenv("OPENAI_BASE_URL")
         if client is not None:
@@ -36,21 +41,52 @@ class JsonLLMClient:
             else:
                 self.client = OpenAI()
 
-    def chat_json(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
-        resp = self.client.chat.completions.create(
-            model=self.config.model,
-            messages=messages,
-            temperature=self.config.temperature,
-            max_tokens=self.config.max_output_tokens,
-            response_format={"type": "json_object"},
-        )
-        content = resp.choices[0].message.content
-        if content is None:
-            raise RuntimeError("LLM returned empty content")
+    def chat_json(self, messages: List[Dict[str, Any]], call_type: str = "unknown") -> Dict[str, Any]:
+        """Make LLM call with full logging of input/output."""
+        start_time = time.time()
+        
         try:
-            return json.loads(content)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(f"Failed to parse LLM JSON: {content}") from exc
+            resp = self.client.chat.completions.create(
+                model=self.config.model,
+                messages=messages,
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_output_tokens,
+                response_format={"type": "json_object"},
+            )
+            
+            duration_ms = int((time.time() - start_time) * 1000)
+            content = resp.choices[0].message.content
+            
+            if content is None:
+                raise RuntimeError("LLM returned empty content")
+            
+            # Parse response
+            response_data = json.loads(content)
+            
+            # Log the full call if logger is available
+            if self.logger:
+                self.logger.log_llm_call(
+                    call_type=call_type,
+                    messages=messages,
+                    response=response_data,
+                    model=self.config.model,
+                    duration_ms=duration_ms,
+                )
+            
+            return response_data
+            
+        except Exception as e:
+            # Log error details
+            if self.logger:
+                duration_ms = int((time.time() - start_time) * 1000)
+                self.logger.log_llm_call(
+                    call_type=call_type,
+                    messages=messages,
+                    response={"error": str(e)},
+                    model=self.config.model,
+                    duration_ms=duration_ms,
+                )
+            raise
 
 
 # ---------- LLM0 prompts & helpers ----------
@@ -109,7 +145,7 @@ def call_llm0_plan(llm: JsonLLMClient, question: str) -> PlanDecision:
             "content": json.dumps({"question": question}, ensure_ascii=False),
         },
     ]
-    data = llm.chat_json(messages)
+    data = llm.chat_json(messages, call_type="llm0_plan")
     action = data.get("action")
     notes = data.get("notes")
 
@@ -219,7 +255,7 @@ def call_llm0_select(
             ),
         },
     ]
-    data = llm.chat_json(messages)
+    data = llm.chat_json(messages, call_type="llm0_select")
     selected_ids = data.get("selected_ids") or []
     notes = data.get("notes")
     return SelectionDecision(selected_ids=selected_ids, notes=notes)
@@ -293,7 +329,7 @@ def call_llm0_synthesize(
             ),
         },
     ]
-    data = llm.chat_json(messages)
+    data = llm.chat_json(messages, call_type="llm0_synthesize")
     answer = data.get("answer", "")
     key_points = data.get("key_points") or []
     used_results = data.get("used_results") or []
@@ -362,7 +398,7 @@ def call_llm1_summarize(
             "content": json.dumps(payload, ensure_ascii=False),
         },
     ]
-    data = llm.chat_json(messages)
+    data = llm.chat_json(messages, call_type="llm1_summarize")
 
     clean_title = data.get("title") or title
     summary_text = data.get("summary", "")
