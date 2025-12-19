@@ -5,7 +5,7 @@ import json
 import sys
 from dataclasses import asdict
 
-from .config import load_llm_configs
+from .config import load_llm_configs, load_full_config, create_default_config_file
 from .logging_utils import StepLogger
 from .llm_client import JsonLLMClient
 from .orchestrator import DeepSeekerOrchestrator
@@ -13,7 +13,13 @@ from .search_client import SearchClient
 
 
 def cmd_search(args: argparse.Namespace) -> int:
-    llm0_cfg, llm1_cfg = load_llm_configs()  # not needed here, but kept for symmetry
+    # Load config with optional config file
+    config = load_full_config(args.config)
+    
+    # Use config values if not overridden by command line args
+    max_results = args.max_results if args.max_results is not None else config.search_max_results
+    when = args.when if args.when is not None else config.search_freshness
+    
     search_client = SearchClient()
     logger = StepLogger(verbose=True, debug=args.debug)
 
@@ -21,9 +27,9 @@ def cmd_search(args: argparse.Namespace) -> int:
 
     req = SearchRequest(
         query=args.query,
-        when=args.when,
+        when=when,
         filters=SearchFilters(),
-        max_results=args.max_results,
+        max_results=max_results,
     )
 
     logger.log("search", f"Searching for query='{req.query}', when='{req.when}'.")
@@ -41,7 +47,7 @@ def cmd_search(args: argparse.Namespace) -> int:
 def cmd_plan(args: argparse.Namespace) -> int:
     from .llm_client import call_llm0_plan
 
-    llm0_cfg, _ = load_llm_configs()
+    llm0_cfg, _ = load_llm_configs(args.config)
     logger = StepLogger(verbose=True, debug=args.debug)
     llm0 = JsonLLMClient(llm0_cfg, logger=logger)
 
@@ -56,7 +62,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    llm0_cfg, llm1_cfg = load_llm_configs()
+    llm0_cfg, llm1_cfg = load_llm_configs(args.config)
     llm0 = JsonLLMClient(llm0_cfg)
     llm1 = JsonLLMClient(llm1_cfg)
     search_client = SearchClient()
@@ -96,25 +102,44 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_init(args: argparse.Namespace) -> int:
+    """Create a default configuration file."""
+    try:
+        config_path = create_default_config_file(args.output)
+        print(f"Created default configuration file: {config_path}")
+        print("\nYou can customize this file and use it with:")
+        print(f"  deepseeker --config {config_path} run --question \"your question\"")
+        return 0
+    except Exception as e:
+        print(f"Error creating config file: {e}", file=sys.stderr)
+        return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="deepseeker", description="DeepSeeker research CLI")
     parser.add_argument("--debug", action="store_true", help="Enable DEBUG logging for detailed LLM I/O records")
+    parser.add_argument("--config", help="Path to JSON configuration file")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # init - create config file
+    p_init = subparsers.add_parser("init", help="Create a default configuration file.")
+    p_init.add_argument("--output", default="deepseeker_config.json", help="Output path for config file.")
+    p_init.set_defaults(func=cmd_init)
 
     # search
     p_search = subparsers.add_parser("search", help="Test BingSift search only.")
     p_search.add_argument("--query", required=True, help="Search query.")
     p_search.add_argument(
         "--when",
-        default="week",
+        default=None,
         choices=["day", "week", "month", "year", "any"],
-        help="Freshness filter for Bing search.",
+        help="Freshness filter for Bing search (overrides config).",
     )
     p_search.add_argument(
         "--max-results",
         type=int,
-        default=10,
-        help="Maximum number of results to return.",
+        default=None,
+        help="Maximum number of results to return (overrides config).",
     )
     p_search.set_defaults(func=cmd_search)
 

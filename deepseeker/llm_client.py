@@ -49,7 +49,6 @@ class JsonLLMClient:
             resp = self.client.chat.completions.create(
                 model=self.config.model,
                 messages=messages,
-                temperature=self.config.temperature,
                 max_tokens=self.config.max_output_tokens,
                 response_format={"type": "json_object"},
             )
