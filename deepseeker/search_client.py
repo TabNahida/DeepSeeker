@@ -11,6 +11,7 @@ from bingsift.net import fetch_serp_by_query  # type: ignore
 from bingsift.net import fetch_click_and_extract_async  # type: ignore
 
 from .types import SearchFilters, SearchRequest, SearchResult
+from .text_extractor import extract_text_from_html
 
 
 class SearchClient:
@@ -87,10 +88,11 @@ class SearchClient:
         max_chars: int = 8000,
     ) -> str:
         """
-        Fetch a web page and return at most max_chars of HTML text.
-
-        This is intentionally simple. You can later replace it with
-        a proper readability / boilerplate removal library.
+        Fetch a web page and extract key text content.
+        
+        This method now extracts readable text from HTML instead of sending
+        raw HTML to the LLM, significantly reducing token usage while
+        preserving the important information.
         """
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
@@ -101,11 +103,12 @@ class SearchClient:
 
         resp = requests.get(url, timeout=self.timeout, headers=headers)
         resp.raise_for_status()
-        text = resp.text
+        html = resp.text
 
-        if len(text) > max_chars:
-            return text[:max_chars]
-        return text
+        # Extract text from HTML
+        extracted_text = extract_text_from_html(html, max_chars=max_chars, use_importance=True)
+        
+        return extracted_text
 
     @staticmethod
     def to_dict_list(results: List[SearchResult]) -> List[dict]:

@@ -315,11 +315,11 @@ You are LLM1 inside DeepSeeker. You are a focused reader and summarizer.
 
 Input:
 - A research question.
-- One web page (HTML content).
+- Extracted text content from one web page (cleaned text, not HTML).
 - Its URL and title.
 
 Task:
-- Read the page.
+- Read the extracted text.
 - Extract information relevant to the question.
 - Produce a concise but rich summary.
 
@@ -334,9 +334,10 @@ Output a JSON object with this structure:
 }
 
 Guidelines:
-- Ignore navigation, ads, boilerplate.
+- Focus on the extracted text content.
 - If the page is mostly irrelevant, set relevance_score < 0.3 and explain why.
 - Do NOT answer the original question globally; only summarize THIS single page.
+- The text may be truncated, so work with what's available.
 """.strip()
 
 
@@ -345,13 +346,13 @@ def call_llm1_summarize(
     question: str,
     url: str,
     title: str,
-    html_excerpt: str,
+    html_excerpt: str,  # Actually contains extracted text now
 ) -> ArticleSummary:
     payload = {
         "question": question,
         "url": url,
         "title": title,
-        "html_excerpt": html_excerpt,
+        "extracted_text": html_excerpt,  # Renamed for clarity
     }
     messages = [
         {"role": "system", "content": LLM1_SYSTEM_PROMPT_SUMMARIZE},

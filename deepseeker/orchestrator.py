@@ -130,7 +130,7 @@ class DeepSeekerOrchestrator:
         for r in read_targets:
             self.logger.log("summarize", f"Fetching and summarizing URL: {r.url}")
             try:
-                html_excerpt = self.search_client.fetch_page_excerpt(r.url)
+                text_content = self.search_client.fetch_page_excerpt(r.url)
             except Exception as e:
                 self.logger.log(
                     "error",
@@ -145,7 +145,7 @@ class DeepSeekerOrchestrator:
                     question=question,
                     url=r.url,
                     title=r.title,
-                    html_excerpt=html_excerpt,
+                    html_excerpt=text_content,  # Now contains extracted text, not HTML
                 )
                 # Attach result_id
                 summary.result_id = r.id
