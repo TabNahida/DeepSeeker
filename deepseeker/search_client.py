@@ -90,7 +90,7 @@ class SearchClient:
         """
         Fetch a web page and extract key text content.
         
-        This method now extracts readable text from HTML instead of sending
+        This method extracts readable text from HTML instead of sending
         raw HTML to the LLM, significantly reducing token usage while
         preserving the important information.
         """

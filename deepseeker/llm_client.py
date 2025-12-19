@@ -338,6 +338,7 @@ Guidelines:
 - If the page is mostly irrelevant, set relevance_score < 0.3 and explain why.
 - Do NOT answer the original question globally; only summarize THIS single page.
 - The text may be truncated, so work with what's available.
+- Remove any remaining duplicate content or boilerplate text.
 """.strip()
 
 
@@ -346,13 +347,13 @@ def call_llm1_summarize(
     question: str,
     url: str,
     title: str,
-    html_excerpt: str,  # Actually contains extracted text now
+    html_excerpt: str,  # Contains extracted text, not HTML
 ) -> ArticleSummary:
     payload = {
         "question": question,
         "url": url,
         "title": title,
-        "extracted_text": html_excerpt,  # Renamed for clarity
+        "extracted_text": html_excerpt,
     }
     messages = [
         {"role": "system", "content": LLM1_SYSTEM_PROMPT_SUMMARIZE},

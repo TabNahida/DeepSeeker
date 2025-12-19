@@ -1,6 +1,6 @@
 """
-HTML文本提取器
-从HTML内容中提取关键文本，去除HTML标签、脚本、样式等无关内容
+HTML Text Extractor
+Extracts key text content from HTML, removing tags, scripts, styles, and other noise.
 """
 from __future__ import annotations
 
@@ -8,180 +8,220 @@ import re
 from html import unescape
 from typing import Optional
 
+from .text_extraction_config import (
+    REMOVAL_PATTERNS,
+    IMPORTANT_TAGS,
+    CONTENT_TAGS,
+    MIN_RELEVANT_LENGTH
+)
+
 
 class TextExtractor:
-    """从HTML中提取纯文本内容的工具类"""
+    """Tool class for extracting clean text from HTML content"""
     
     def __init__(self, max_length: int = 8000):
         self.max_length = max_length
     
     def extract(self, html: str) -> str:
         """
-        从HTML中提取关键文本内容
+        Extract key text content from HTML
         
         Args:
-            html: HTML内容字符串
+            html: HTML content string
             
         Returns:
-            提取后的纯文本
+            Cleaned text content
         """
         if not html:
             return ""
         
-        # 1. 移除脚本和样式标签及其内容
+        # 1. Remove script and style tags with their content
         html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
         html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
         html = re.sub(r'<!--.*?-->', '', html, flags=re.DOTALL)
         
-        # 2. 移除所有标签，但保留标签间的文本
+        # 2. Remove all tags but keep text between them
         html = re.sub(r'<[^>]+>', ' ', html)
         
-        # 3. 处理常见的HTML实体
+        # 3. Handle HTML entities
         html = unescape(html)
         
-        # 4. 清理空白字符
-        # 合并多个空格
+        # 4. Clean whitespace
         html = re.sub(r'\s+', ' ', html)
-        # 移除首尾空格
         html = html.strip()
         
-        # 5. 移除常见的导航、广告等无关文本模式
-        patterns_to_remove = [
-            r'导航\s*：?\s*[\w\s]*',
-            r'首页|主页|关于|联系我们|隐私政策|服务条款|用户协议',
-            r'Copyright|版权所有|©\s*\d{4}',
-            r'All rights reserved',
-            r'返回顶部|回到顶部|Back to top',
-            r'广告|推广|赞助|优惠|折扣',
-            r'分享到：?\s*(微信|微博|QQ|Facebook|Twitter)',
-            r'阅读原文|查看更多|了解更多',
-            r'立即报名|点击这里|点击下载',
-            r'登录|注册|Sign in|Sign up',
-            r'搜索：?\s*[\w\s]*',
-            r'热门推荐|相关阅读|猜你喜欢',
-        ]
-        
-        for pattern in patterns_to_remove:
+        # 5. Remove common noise patterns using config
+        for pattern in REMOVAL_PATTERNS:
             html = re.sub(pattern, '', html, flags=re.IGNORECASE)
         
-        # 6. 再次清理多余的空白
+        # 6. Clean up whitespace again
         html = re.sub(r'\s+', ' ', html)
         html = html.strip()
         
-        # 7. 截断到最大长度
+        # 7. Remove duplicate sentences/words
+        html = self._remove_duplicates(html)
+        
+        # 8. Truncate if needed
         if len(html) > self.max_length:
-            # 尝试在句子边界处截断
             truncate_point = self._find_sentence_boundary(html, self.max_length)
             html = html[:truncate_point].strip()
         
         return html
     
-    def _find_sentence_boundary(self, text: str, max_len: int) -> int:
+    def _remove_duplicates(self, text: str) -> str:
         """
-        在指定长度内找到句子边界
+        Remove duplicate sentences and repeated content
         
         Args:
-            text: 文本内容
-            max_len: 最大长度
+            text: Text to clean
             
         Returns:
-            截断位置
+            Text with duplicates removed
         """
-        # 首先尝试在句号、问号、感叹号后截断
+        # Split into sentences using multiple delimiters
+        sentence_delimiters = r'[。！？.!?]+'
+        sentences = [s.strip() for s in re.split(sentence_delimiters, text) if s.strip()]
+        
+        if not sentences:
+            return text
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_sentences = []
+        
+        for sentence in sentences:
+            # Normalize for comparison: lowercase, remove extra spaces
+            normalized = re.sub(r'\s+', ' ', sentence.lower()).strip()
+            
+            # Also check for near-duplicates (very similar sentences)
+            is_duplicate = False
+            for existing in seen:
+                # If sentences share 80%+ of words, consider them duplicates
+                existing_words = set(existing.split())
+                current_words = set(normalized.split())
+                if len(existing_words) > 0 and len(current_words) > 0:
+                    intersection = existing_words.intersection(current_words)
+                    union = existing_words.union(current_words)
+                    similarity = len(intersection) / len(union)
+                    if similarity > 0.8:
+                        is_duplicate = True
+                        break
+            
+            if not is_duplicate and normalized:
+                seen.add(normalized)
+                unique_sentences.append(sentence)
+        
+        # Reconstruct text with proper punctuation
+        result = '. '.join(unique_sentences)
+        if result and not result.endswith(('.', '。', '!', '！', '?', '？')):
+            result += '.'
+        
+        return result
+    
+    def _find_sentence_boundary(self, text: str, max_len: int) -> int:
+        """
+        Find sentence boundary within specified length
+        
+        Args:
+            text: Text content
+            max_len: Maximum length
+            
+        Returns:
+            Truncation position
+        """
+        # First try to truncate after punctuation marks
         for punct in ['。', '.', '！', '!', '？', '?']:
-            # 找到在max_len之前的最后一个标点位置
             last_punct = text.rfind(punct, 0, max_len)
-            if last_punct != -1 and last_punct > max_len - 100:  # 不要截断太短
+            if last_punct != -1 and last_punct > max_len - 100:
                 return last_punct + 1
         
-        # 如果找不到句子边界，尝试在空格处截断
+        # If no punctuation found, try to truncate at space
         last_space = text.rfind(' ', 0, max_len)
         if last_space != -1:
             return last_space
         
-        # 如果连空格都找不到，直接截断
+        # Fallback to direct truncation
         return max_len
     
     def extract_with_importance(
         self, 
         html: str, 
-        important_tags: list[str] = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'article']
+        important_tags: Optional[list[str]] = None
     ) -> str:
         """
-        提取文本时优先保留重要标签的内容
+        Extract text while prioritizing important tag content
         
         Args:
-            html: HTML内容
-            important_tags: 重要的HTML标签列表
+            html: HTML content
+            important_tags: List of important HTML tags (uses config if None)
             
         Returns:
-            提取后的文本
+            Extracted text
         """
         if not html:
             return ""
         
-        # 先提取重要标签的内容
+        if important_tags is None:
+            important_tags = IMPORTANT_TAGS
+        
+        # First extract content from important tags
         important_content = []
         
         for tag in important_tags:
-            # 匹配标签及其内容
+            # Match tags and their content
             pattern = f'<{tag}[^>]*>(.*?)</{tag}>'
             matches = re.findall(pattern, html, flags=re.DOTALL | re.IGNORECASE)
             for match in matches:
-                # 清理内容
+                # Clean content
                 cleaned = re.sub(r'<[^>]+>', ' ', match)
                 cleaned = re.sub(r'\s+', ' ', cleaned).strip()
                 if cleaned:
                     important_content.append(cleaned)
         
-        # 如果提取到了重要内容，返回它们
+        # If important content found, return it
         if important_content:
             result = ' '.join(important_content)
-            # 应用相同的清理规则
+            # Apply cleaning rules
             result = self._clean_text(result)
+            
+            # Check minimum relevance length
+            if len(result) < MIN_RELEVANT_LENGTH:
+                # Fall back to full extraction if too short
+                return self.extract(html)
+            
             if len(result) <= self.max_length:
                 return result
             else:
-                # 如果重要内容太多，进行截断
+                # Truncate if needed
                 truncate_point = self._find_sentence_boundary(result, self.max_length)
                 return result[:truncate_point].strip()
         
-        # 如果没有找到重要标签，回退到全文提取
+        # Fallback to full extraction
         return self.extract(html)
     
     def _clean_text(self, text: str) -> str:
-        """清理文本中的多余空白和无关内容"""
-        # 移除多余的空白字符
+        """Clean text of extra whitespace and noise patterns"""
+        # Remove extra whitespace
         text = re.sub(r'\s+', ' ', text)
-        # 移除常见的无关短语
-        patterns_to_remove = [
-            r'广告|推广|赞助|优惠|折扣',
-            r'分享到：?\s*(微信|微博|QQ|Facebook|Twitter)',
-            r'阅读原文|查看更多|了解更多',
-            r'立即报名|点击这里|点击下载',
-            r'登录|注册|Sign in|Sign up',
-            r'Copyright|版权所有|©\s*\d{4}',
-            r'All rights reserved',
-            r'返回顶部|回到顶部|Back to top',
-        ]
-        for pattern in patterns_to_remove:
+        # Remove noise patterns using config
+        for pattern in REMOVAL_PATTERNS:
             text = re.sub(pattern, '', text, flags=re.IGNORECASE)
-        # 再次清理空白
+        # Clean whitespace again
         text = re.sub(r'\s+', ' ', text).strip()
         return text
 
 
 def extract_text_from_html(html: str, max_chars: int = 8000, use_importance: bool = True) -> str:
     """
-    便捷函数：从HTML中提取文本
+    Convenience function: extract text from HTML
     
     Args:
-        html: HTML内容
-        max_chars: 最大字符数
-        use_importance: 是否使用重要性提取
+        html: HTML content
+        max_chars: Maximum characters
+        use_importance: Whether to use importance-based extraction
         
     Returns:
-        提取后的文本
+        Extracted text
     """
     extractor = TextExtractor(max_length=max_chars)
     if use_importance:

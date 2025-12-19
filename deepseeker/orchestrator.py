@@ -145,7 +145,7 @@ class DeepSeekerOrchestrator:
                     question=question,
                     url=r.url,
                     title=r.title,
-                    html_excerpt=text_content,  # Now contains extracted text, not HTML
+                    html_excerpt=text_content,  # Contains extracted text, not HTML
                 )
                 # Attach result_id
                 summary.result_id = r.id
