@@ -47,9 +47,9 @@ def cmd_search(args: argparse.Namespace) -> int:
 def cmd_plan(args: argparse.Namespace) -> int:
     from .llm_client import call_llm0_plan
 
-    llm0_cfg, _ = load_llm_configs(args.config)
+    config = load_full_config(args.config)
     logger = StepLogger(verbose=True, debug=args.debug)
-    llm0 = JsonLLMClient(llm0_cfg, logger=logger)
+    llm0 = JsonLLMClient(config.llm0, logger=logger, api_key=config.api_key, base_url=config.base_url)
 
     logger.log("plan", "Calling LLM0 planning endpoint.")
     plan = call_llm0_plan(llm0, question=args.question)
@@ -62,9 +62,9 @@ def cmd_plan(args: argparse.Namespace) -> int:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    llm0_cfg, llm1_cfg = load_llm_configs(args.config)
-    llm0 = JsonLLMClient(llm0_cfg)
-    llm1 = JsonLLMClient(llm1_cfg)
+    config = load_full_config(args.config)
+    llm0 = JsonLLMClient(config.llm0, api_key=config.api_key, base_url=config.base_url)
+    llm1 = JsonLLMClient(config.llm1, api_key=config.api_key, base_url=config.base_url)
     search_client = SearchClient()
     logger = StepLogger(verbose=True, debug=args.debug)
 
@@ -107,8 +107,21 @@ def cmd_init(args: argparse.Namespace) -> int:
     try:
         config_path = create_default_config_file(args.output)
         print(f"Created default configuration file: {config_path}")
-        print("\nYou can customize this file and use it with:")
-        print(f"  deepseeker --config {config_path} run --question \"your question\"")
+        
+        if args.output == "config.json":
+            print("\nSince this is the default config.json file, it will be automatically")
+            print("detected and used by all commands without needing --config parameter.")
+            print("\nYou can still override it with:")
+            print(f"  deepseeker --config custom_config.json run --question \"your question\"")
+        else:
+            print("\nYou can customize this file and use it with:")
+            print(f"  deepseeker --config {config_path} run --question \"your question\"")
+        
+        print("\nIMPORTANT: Set your API key in the config file or use environment variable:")
+        print("  $env:OPENAI_API_KEY=\"your-api-key\"")
+        print("\nOptional: Set custom base URL for OpenAI-compatible endpoints:")
+        print("  $env:OPENAI_BASE_URL=\"https://your-endpoint/v1\"")
+        
         return 0
     except Exception as e:
         print(f"Error creating config file: {e}", file=sys.stderr)
@@ -118,12 +131,12 @@ def cmd_init(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="deepseeker", description="DeepSeeker research CLI")
     parser.add_argument("--debug", action="store_true", help="Enable DEBUG logging for detailed LLM I/O records")
-    parser.add_argument("--config", help="Path to JSON configuration file")
+    parser.add_argument("--config", help="Path to JSON configuration file (default: config.json if exists)")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # init - create config file
     p_init = subparsers.add_parser("init", help="Create a default configuration file.")
-    p_init.add_argument("--output", default="deepseeker_config.json", help="Output path for config file.")
+    p_init.add_argument("--output", default="config.json", help="Output path for config file.")
     p_init.set_defaults(func=cmd_init)
 
     # search

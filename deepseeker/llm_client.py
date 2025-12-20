@@ -28,18 +28,22 @@ class JsonLLMClient:
     Enhanced with logging capabilities to record full LLM I/O.
     """
 
-    def __init__(self, config: LLMConfig, client: OpenAI | None = None, logger: Optional[StepLogger] = None):
+    def __init__(self, config: LLMConfig, client: OpenAI | None = None, logger: Optional[StepLogger] = None, 
+                 api_key: Optional[str] = None, base_url: Optional[str] = None):
         self.config = config
         self.logger = logger
-        # Support custom base_url if you want to use an OpenAI-compatible endpoint
-        base_url = os.getenv("OPENAI_BASE_URL")
+        
         if client is not None:
             self.client = client
         else:
-            if base_url:
-                self.client = OpenAI(base_url=base_url)
+            # Priority: explicit parameters > environment variables
+            use_api_key = api_key or os.getenv("OPENAI_API_KEY")
+            use_base_url = base_url or os.getenv("OPENAI_BASE_URL")
+            
+            if use_base_url:
+                self.client = OpenAI(api_key=use_api_key, base_url=use_base_url)
             else:
-                self.client = OpenAI()
+                self.client = OpenAI(api_key=use_api_key)
 
     def chat_json(self, messages: List[Dict[str, Any]], call_type: str = "unknown") -> Dict[str, Any]:
         """Make LLM call with full logging of input/output."""

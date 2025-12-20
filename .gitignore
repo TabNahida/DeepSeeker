@@ -1,6 +1,7 @@
 *.pyc
 test_step1.py
 test.md
+config.json
 /build
 /logs
 /deepseeker.egg-info
